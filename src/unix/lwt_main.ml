@@ -34,6 +34,18 @@ let run p =
     | None ->
       (* Call enter hooks. *)
       Lwt_sequence.iter_l (fun f -> f ()) enter_iter_hooks;
+      
+      let should_block_waiting_for_suspended_task =
+        Lwt.paused_count () = 0 && Lwt_sequence.is_empty yielded in
+        (
+          if (should_block_waiting_for_suspended_task = true) then
+              begin
+                  while (Lwt.suspend_cnt () > 0) do
+                    Unix.sleep 1
+                  done
+                end
+        );
+        
 
       (* Do the main loop call. *)
       let should_block_waiting_for_io =

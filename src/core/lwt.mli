@@ -1956,6 +1956,12 @@ val abandon_paused : unit -> unit
 
 (**/**)
 
+open Unified_interface
+val suspend_cnt : unit -> int
+val incr_suspend_count : unit -> unit
+val decr_suspend_count : unit -> unit
+val suspend_fn : ('a Sched.resumer -> bool) -> 'a t
+
 
 
 (** {3 Function lifters} *)

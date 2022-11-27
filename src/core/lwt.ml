@@ -2998,7 +2998,7 @@ end
 include Concurrent_composition
 
 
-
+open Unified_interface
 module Miscellaneous :
 sig
   (* Promise state query *)
@@ -3045,6 +3045,13 @@ sig
   val paused_count : unit -> int
   val register_pause_notifier : (int -> unit) -> unit
   val abandon_paused : unit -> unit
+
+
+  val suspend_cnt : unit -> int
+  val incr_suspend_count : unit -> unit
+  val decr_suspend_count : unit -> unit
+  val suspend_fn : ('a Sched.resumer -> bool) -> 'a t
+
 
   (* Internal interface for other modules in Lwt *)
   val poll : 'a t -> 'a option
@@ -3121,6 +3128,25 @@ struct
 
   let paused = Lwt_sequence.create ()
   let paused_count = ref 0
+
+  let suspend_count = Atomic.make 0
+  let suspend_cnt () = Atomic.get suspend_count
+
+  let incr_suspend_count () = Atomic.incr suspend_count 
+  let decr_suspend_count () = Atomic.decr suspend_count
+
+  let suspend_fn f = 
+                  incr_suspend_count ();
+                  let (promise, resolver) = task () in
+                  let resumer v = (decr_suspend_count ();
+                                  match v with
+                                  | Ok v -> wakeup resolver v
+                                  | Error _ -> ()) in
+                                  if f resumer then 
+                                  promise
+                                else
+                                  raise Exit
+
 
   let pause () =
     let p = add_task_r paused in
